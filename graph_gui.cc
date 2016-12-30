@@ -4,12 +4,14 @@
 #include <cstdlib>
 #include <stdio.h>
 
-VertexInfo* vertices[MAX_VERTICES_NUM];
-size_t vertices_size = 0;
+typedef int (*photon_cb)(PtWidget_t* wgt, void* data, PtCallbackInfo_t* info);
 
-PtWidget_t* win = NULL;
+static VertexInfo* vertices[MAX_VERTICES_NUM];
+static size_t vertices_size = 0;
 
-GraphCmd cur_cmd;
+static PtWidget_t* win = NULL;
+
+static GraphCmd   cur_cmd;
 
 int cb_save_to_file(PtWidget_t* wgt, void* data, PtCallbackInfo_t* info);
 int cb_load_from_file(PtWidget_t* wgt, void* data, PtCallbackInfo_t* info);
@@ -210,7 +212,7 @@ int cb_menu_lost_focus(PtWidget_t* wgt, void* data, PtCallbackInfo_t* info)
 	return Pt_CONTINUE;
 }
 
-void create_menu_button(PtWidget_t* parent, int offset, int height, const char* text, int (*cb)(PtWidget_t* wgt, void* data, PtCallbackInfo_t* info), void* data)
+void create_menu_button(PtWidget_t* parent, int offset, int height, const char* text, photon_cb cb, void* data)
 {
 	PhArea_t* parent_area;
 	PtGetResource(parent, Pt_ARG_AREA, &parent_area, 0);
@@ -436,8 +438,6 @@ int cb_create_element_menu(PtWidget_t* wgt, void* data, PtCallbackInfo_t* info)
 
 	return Pt_CONTINUE;
 }
-
-VertexInfo tmp_einfo;
 
 int cb_create_adding_menu(PtWidget_t* wgt, void* data, PtCallbackInfo_t* info)
 {

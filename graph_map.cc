@@ -2,6 +2,17 @@
 #include "graph_map.h"
 #include <libxml/parser.h>
 
+int xmlGetPropInt(xmlNodePtr node, const xmlChar* name)
+{
+	return atoi((char*)xmlGetProp(node, name));
+}
+
+void xmlSetPropInt(xmlNodePtr node, const xmlChar* name, int val)
+{
+	static char attr_val[100];
+	xmlNewNsProp(node, NULL, name, BAD_CAST itoa(val, attr_val, 10));
+}
+
 void save_map(char* filename)
 {
 	xmlDocPtr doc = xmlNewDoc(BAD_CAST "1.0");
@@ -10,34 +21,42 @@ void save_map(char* filename)
 
 	xmlDocSetRootElement(doc, root);
 
-	char attr_val[100];
 	size_t i = 0;
 	VertexInfo* cur_vertex;
 	while((cur_vertex = get_next_vertex(&i)) != NULL)
 	{
 		xmlNodePtr cur_node = xmlNewNode(NULL, BAD_CAST "vertex");
-		itoa(cur_vertex->pos.x, attr_val, 10);
-		xmlNewNsProp(cur_node, NULL, BAD_CAST "x", BAD_CAST attr_val);
-		itoa(cur_vertex->pos.y, attr_val, 10);
-		xmlNewNsProp(cur_node, NULL, BAD_CAST "y", BAD_CAST attr_val);
-		itoa(cur_vertex->type, attr_val, 10);
-		xmlNewNsProp(cur_node, NULL, BAD_CAST "type", BAD_CAST attr_val);
+
+		xmlSetPropInt(cur_node, BAD_CAST "id"  , cur_vertex->id   );
+		xmlSetPropInt(cur_node, BAD_CAST "x"   , cur_vertex->pos.x);
+		xmlSetPropInt(cur_node, BAD_CAST "y"   , cur_vertex->pos.y);
+		xmlSetPropInt(cur_node, BAD_CAST "type", cur_vertex->type );
 
 		xmlAddChild(root, cur_node);
 	}
 
 	xmlSaveFormatFile(filename, doc, 1);
+
+	xmlFreeDoc(doc);
 }
 
 void load_map(char* filename)
 {
 	xmlDocPtr doc = xmlReadFile(filename, NULL, XML_PARSE_NOBLANKS);
+	if(doc == NULL){
+		printf("Bad map file!\n");
+		xmlFreeDoc(doc);
+		return;
+	}
 
 	xmlNodePtr root = xmlDocGetRootElement(doc);
+	if(!xmlStrEqual(root->name, BAD_CAST "graph")){
+		printf("Bad map file format!\n");
+		xmlFreeDoc(doc);
+		return;
+	}
 
 	xmlNodePtr cur = root->children;
-
-	char attr_val[100];
 
 	bool bad_attr = false;
 
@@ -46,10 +65,21 @@ void load_map(char* filename)
 
 	while(cur != NULL)
 	{
+		if(!xmlStrEqual(cur->name, BAD_CAST "vertex")){
+			cur = cur->next;
+			continue;
+		}
+
+		if(xmlHasProp(cur, BAD_CAST "id")){
+			int val = xmlGetPropInt(cur, BAD_CAST "id");
+			printf("id = %d\n", val);
+			vertex.id = val;
+		}
+		else{
+			bad_attr = true;
+		}
 		if(xmlHasProp(cur, BAD_CAST "x")){
-			char* val_str = (char*)xmlGetProp(cur, BAD_CAST "x");
-			strncpy(attr_val, val_str, 100);
-			int val = atoi(attr_val);
+			int val = xmlGetPropInt(cur, BAD_CAST "x");
 			printf("x = %d\n", val);
 			vertex.pos.x = val;
 		}
@@ -57,9 +87,7 @@ void load_map(char* filename)
 			bad_attr = true;
 		}
 		if(xmlHasProp(cur, BAD_CAST "y")){
-			char* val_str = (char*)xmlGetProp(cur, BAD_CAST "y");
-			strncpy(attr_val, val_str, 100);
-			int val = atoi(attr_val);
+			int val = xmlGetPropInt(cur, BAD_CAST "y");
 			printf("y = %d\n", val);
 			vertex.pos.y = val;
 		}
@@ -67,20 +95,23 @@ void load_map(char* filename)
 			bad_attr = true;
 		}
 		if(xmlHasProp(cur, BAD_CAST "type")){
-			char* val_str = (char*)xmlGetProp(cur, BAD_CAST "type");
-			strncpy(attr_val, val_str, 100);
-			int val = atoi(attr_val);
+			int val = xmlGetPropInt(cur, BAD_CAST "type");
 			printf("type = %d\n", val);
 			vertex.type = (VertexType)val;
 		}
 		else{
 			bad_attr = true;
 		}
+
 		if(!bad_attr){
 			add_vertex(&vertex);
 		}
+		else{
+			printf("Bad vertex description!\n");
+		}
 		cur = cur->next;
 	}
+	xmlFreeDoc(doc);
 }
 
 /*
